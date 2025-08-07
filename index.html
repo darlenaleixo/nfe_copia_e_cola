@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplicativo de Backup e Agendamento de NFEs</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #0056b3;
+        }
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        code {
+            background-color: #e9e9e9;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        pre {
+            background-color: #e9e9e9;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        ul, ol {
+            margin-left: 20px;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #ccc;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+<h1>Aplicativo de Backup e Agendamento de NFEs</h1>
+<p>Este é um aplicativo Python com interface gráfica (Tkinter) para automatizar a cópia, compactação e upload de arquivos XML (NFEs) para o Google Drive, com notificações por e-mail e agendamento de tarefas.</p>
+<h2>Requisitos</h2>
+<p>Para executar este aplicativo, você precisará:</p>
+<ol>
+<li><strong>Python 3.x</strong>: Certifique-se de ter o Python 3 instalado em seu sistema. Você pode baixá-lo em <a href="https://www.python.org/downloads/">python.org</a>.</li>
+<li><strong>Tkinter</strong>: A biblioteca Tkinter geralmente vem com a instalação padrão do Python. Se você estiver em um sistema Linux e tiver problemas, pode precisar instalá-la separadamente (ex: <code>sudo apt-get install python3-tk</code>).</li>
+<li><strong>rclone</strong>: Este aplicativo utiliza o <code>rclone</code> para o upload de arquivos para o Google Drive. Baixe e configure o <code>rclone</code> em seu sistema. Certifique-se de que o caminho para o executável <code>rclone.exe</code> e o arquivo de configuração <code>rclone.conf</code> estejam corretos nas configurações do aplicativo.<ul>
+<li>Baixe o rclone em <a href="https://rclone.org/downloads/">rclone.org/downloads/</a></li>
+<li>Configure um remote para o Google Drive (ex: <code>MeuGoogleDrive</code>) seguindo a documentação do rclone.</li>
+</ul>
+</li>
+</ol>
+<h2>Como Usar</h2>
+<ol>
+<li>
+<p><strong>Baixe os arquivos do aplicativo</strong>: Copie o arquivo <code>app.py</code> para uma pasta em seu computador.</p>
+</li>
+<li>
+<p><strong>Execute o aplicativo</strong>: Abra um terminal ou prompt de comando na pasta onde você salvou o <code>app.py</code> e execute o seguinte comando:
+    <pre><code>python app.py</code></pre>
+</li>
+<li>
+<p><strong>Configurações (Aba "Configurações")</strong>:</p>
+<ul>
+<li><strong>Pasta Origem</strong>: Onde os arquivos XML (NFEs) estão localizados.</li>
+<li><strong>Pasta Destino Base</strong>: Onde os arquivos serão copiados localmente antes da compactação e upload.</li>
+<li><strong>Caminho Rclone</strong>: O caminho completo para o executável <code>rclone.exe</code>.</li>
+<li><strong>Nome Remoto Rclone</strong>: O nome do remote do rclone configurado para o Google Drive (ex: <code>MeuGoogleDrive</code>).</li>
+<li><strong>Pasta Base Drive</strong>: A pasta raiz no seu Google Drive onde os backups serão armazenados (ex: <code>CLIENTES</code>).</li>
+<li><strong>Nome Cliente Específico</strong>: O nome do cliente para organizar as pastas no Google Drive (ex: <code>PIE HOUSE</code>).</li>
+<li><strong>Configurações de E-mail</strong>: Preencha os detalhes do seu servidor SMTP, usuário, senha (senha de aplicativo para Gmail) e endereços de e-mail para notificações.</li>
+<li><strong>Opções de Funcionalidades</strong>: Marque ou desmarque as caixas para ativar/desativar notificações por e-mail, upload para o Google Drive via rclone e verificação de pré-requisitos.</li>
+</ul>
+</li>
+<li>
+<p><strong>Execução (Aba "Execução")</strong>:</p>
+<ul>
+<li>Clique no botão "Executar Backup Agora" para iniciar o processo de cópia, compactação e upload manualmente.</li>
+<li>A área de texto exibirá os logs de execução em tempo real.</li>
+</ul>
+</li>
+<li>
+<p><strong>Agendamento (Aba "Agendamento")</strong>:</p>
+<ul>
+<li>Clique no botão "Agendar Tarefa" para criar uma tarefa agendada no Windows. Esta tarefa executará o backup automaticamente todo dia 1 de cada mês às 10:00.</li>
+<li><strong>Importante</strong>: O agendamento de tarefas no Windows requer permissões de administrador. Execute o aplicativo como administrador se o agendamento falhar.</li>
+<li>O aplicativo tentará criar um script PowerShell temporário (<code>run_backup.ps1</code>) na sua <code>Pasta Destino Base</code> para ser usado pela tarefa agendada. Este script chamará o aplicativo Python para executar o backup.</li>
+</ul>
+</li>
+</ol>
+<h2>Observações Importantes</h2>
+<ul>
+<li><strong>Segurança da Senha</strong>: A senha do SMTP é armazenada em texto simples no aplicativo. Para maior segurança em um ambiente de produção, considere usar métodos mais seguros de armazenamento de credenciais (ex: variáveis de ambiente, gerenciadores de segredos).</li>
+<li><strong>Caminhos no Windows</strong>: Certifique-se de usar barras invertidas duplas (<code>\\</code>) ou barras normais (<code>/</code>) em caminhos de arquivo no Python para evitar problemas de escape (ex: <code>C:\\Mobility_POS\\Xml_IO</code>).</li>
+<li><strong>Execução como Administrador</strong>: Para agendar tarefas no Windows, o aplicativo (ou o terminal de onde ele é executado) precisa ter permissões de administrador.</li>
+<li><strong>Logs</strong>: Os logs de execução são exibidos na interface e também salvos em um arquivo <code>log_copia_nfe.log</code> na sua <code>Pasta Destino Base</code>.</li>
+</ul>
+<h2>Solução de Problemas</h2>
+<ul>
+<li><strong><code>ModuleNotFoundError: No module named 'tkinter'</code></strong>: Instale o Tkinter para Python. Em Debian/Ubuntu: <code>sudo apt-get install python3-tk</code>.</li>
+<li><strong><code>_tkinter.TclError: no display name and no $DISPLAY environment variable</code></strong>: Este erro ocorre em ambientes sem interface gráfica (como servidores). O aplicativo precisa de um ambiente gráfico para ser executado.</li>
+<li><strong>Problemas com rclone</strong>: Verifique se o <code>rclone.exe</code> está no caminho correto e se o remote (<code>MeuGoogleDrive</code>) está configurado corretamente (<code>rclone config</code>). Verifique também o arquivo <code>rclone.conf</code>.</li>
+<li><strong>Problemas de E-mail</strong>: Verifique as configurações do servidor SMTP, porta, usuário e senha. Para Gmail, você precisará de uma "senha de aplicativo" (App Password) se tiver a verificação em duas etapas ativada.</li>
+</ul>
+<hr />
+<p>Espero que este aplicativo seja útil!</p>
+</body>
+</html>
+
