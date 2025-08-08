@@ -7,8 +7,6 @@ import locale
 import zipfile
 import subprocess
 import smtplib
-import csv
-import xmltodict
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -42,105 +40,6 @@ class App(tk.Tk):
         self.notebook.add(self.schedule_frame, text="Agendamento")
         self.create_schedule_tab(self.schedule_frame)
 
-    # ===================================================================
-    #           COLOQUE AS NOVAS FUNÇÕES AQUI
-    #           Elas devem ter a mesma indentação (recuo) que as outras funções da classe.
-    # ===================================================================
-
-    def extrair_dados_de_xml(self, caminho_arquivo_xml):
-        """
-        Lê um único arquivo XML de NFe e extrai os dados mais importantes.
-        Args:
-         caminho_arquivo_xml (str): O caminho completo para o arquivo .xml.
-        Returns:
-        dict: Um dicionário com os dados extraídos, ou None se ocorrer um erro.
-        """
-        try:
-            with open(caminho_arquivo_xml, 'r', encoding='utf-8') as arquivo:
-                # Converte o XML para um dicionário Python
-                nfe_dict = xmltodict.parse(arquivo.read())
-
-                # Navega de forma segura pela estrutura do dicionário usando .get()
-                infNFe = nfe_dict.get('nfeProc', {}).get('NFe', {}).get('infNFe', {})
-                if not infNFe:
-                    # Tenta uma estrutura alternativa comum
-                    infNFe = nfe_dict.get('NFe', {}).get('infNFe', {})
-                    if not infNFe:
-                        self.log_message(f"AVISO: Estrutura XML não reconhecida em {os.path.basename(caminho_arquivo_xml)}")
-                        return None
-
-                # Extrai os dados desejados usando .get() para evitar erros
-                dados = {
-                    'arquivo': os.path.basename(caminho_arquivo_xml),
-                    'data_emissao': infNFe.get('ide', {}).get('dhEmi', 'N/A'),
-                    'emitente_nome': infNFe.get('emit', {}).get('xNome', 'N/A'),
-                    'emitente_cnpj': infNFe.get('emit', {}).get('CNPJ', 'N/A'),
-                    'destinatario_nome': infNFe.get('dest', {}).get('xNome', 'N/A'),
-                    'destinatario_cpf_cnpj': infNFe.get('dest', {}).get('CNPJ') or infNFe.get('dest', {}).get('CPF', 'N/A'),
-                    'valor_total': infNFe.get('total', {}).get('ICMSTot', {}).get('vNF', '0.00'),
-                }
-                return dados
-                                
-        except Exception as e:
-            self.log_message(f"ERRO ao processar o arquivo XML {os.path.basename(caminho_arquivo_xml)}: {e}")
-            return None                
-
-    def salvar_dados_em_csv(self, lista_de_dados, caminho_arquivo_csv):
-        """
-        Salva uma lista de dados de NFes em um arquivo CSV, incluindo uma linha de total.
-
-        Args:
-            lista_de_dados (list): Uma lista de dicionários, onde cada dicionário é uma NFe.
-            caminho_arquivo_csv (str): O caminho completo onde o arquivo .csv será salvo.
-        """
-        if not lista_de_dados:
-            self.log_message("Nenhum dado de NFe para salvar no resumo CSV.")
-            return
-        try:
-            # --- NOVO: Bloco para calcular o total geral ---
-            total_geral = 0.0
-            for nfe in lista_de_dados:
-                try:
-                    # Pega o valor da NFe, que é uma string (texto)
-                    valor_str = nfe.get('valor_total', '0.00')
-                    # Converte para número (float), trocando vírgula por ponto se necessário
-                    total_geral += float(valor_str.replace(',', '.'))
-                except (ValueError, TypeError):
-                    # Se o valor não for um número válido, apenas ignora e continua
-                    self.log_message(f"AVISO: Valor inválido encontrado no arquivo {nfe.get('arquivo')} e ignorado na soma.")
-                    continue
-            # --- FIM DO NOVO BLOCO ---
-
-            # Define os nomes das colunas (cabeçalho)
-            cabecalho = ['arquivo', 'data_emissao', 'emitente_nome', 'emitente_cnpj', 'destinatario_nome', 'destinatario_cpf_cnpj', 'valor_total']
-            
-            with open(caminho_arquivo_csv, 'w', newline='', encoding='utf-8-sig') as arquivo_csv:
-                # Cria o "escritor" de CSV, usando ponto e vírgula como separador
-                escritor = csv.DictWriter(arquivo_csv, fieldnames=cabecalho, delimiter=';')
-                
-                # Escreve a primeira linha (cabeçalho)
-                escritor.writeheader()
-                
-                # Escreve os dados de cada NFe
-                escritor.writerows(lista_de_dados)
-                
-                # --- NOVO: Bloco para escrever a linha de total ---
-                # Adiciona uma linha em branco para separar visualmente o total
-                escritor.writerow({})
-
-                # Cria o dicionário para a linha de total
-                linha_total = {
-                    'destinatario_cpf_cnpj': 'TOTAL GERAL:',  # Coloca o texto na penúltima coluna
-                    'valor_total': f'{total_geral:.2f}'.replace('.', ',') # Formata o valor com 2 casas decimais e vírgula
-                }
-                # Escreve a linha final com o total
-                escritor.writerow(linha_total)
-                # --- FIM DO NOVO BLOCO ---
-
-            self.log_message(f"SUCESSO: Resumo com totalização salvo em '{caminho_arquivo_csv}'")
-        except Exception as e:
-            self.log_message(f"ERRO ao salvar o arquivo CSV com total: {e}")    
-   
     def create_settings_tab(self, parent_frame):
         # Exemplo de campo de configuração
         ttk.Label(parent_frame, text="Pasta Origem:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
@@ -328,36 +227,17 @@ class App(tk.Tk):
                     raise Exception("Pré-requisitos não atendidos. Verifique o log para detalhes.")
                 self.log_message("Pré-requisitos verificados com sucesso.")
 
-            # ===========================Lógica de cópia de arquivos================================================
-#===================================================================================================================
-#                           COLE ESTE BLOCO DE CÓDIGO NO LUGAR DO ANTIGO
-# ==============================================================================
+            # Lógica de cópia de arquivos
+            locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8') # Para nomes de meses em português
+            mes_de_referencia = datetime.now().replace(day=1) # Mês atual
+            # Para o mês anterior, descomente a linha abaixo e comente a de cima
+            # mes_de_referencia = (datetime.now().replace(day=1) - timedelta(days=1)).replace(day=1)
 
-            # 1. Tenta definir a localidade para Português-Brasil (para nomes de meses)
-            try:
-                locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
-            except locale.Error:
-            # Se falhar (comum no Windows), usa a alternativa
-                locale.setlocale(locale.LC_ALL, 'Portuguese_Brazil.1252')
+            primeiro_dia_mes_referencia = mes_de_referencia.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            ultimo_dia_mes_referencia = (mes_de_referencia.replace(month=mes_de_referencia.month % 12 + 1, day=1) - timedelta(microseconds=1))
 
-            # 2. Pega a data e hora exatas de AGORA.
-            hoje = datetime.now()
-            # 3. Define o INÍCIO EXATO do MÊS ATUAL (ex: 01/08/2025 00:00:00).
-            #    A parte da hora/minuto zerada é a mais importante.
-            primeiro_dia_mes_atual = hoje.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            # 4. Encontra o PRIMEIRO DIA do MÊS ANTERIOR.
-            #    Subtrai 1 dia (cai no mês anterior) e depois define o dia como 1.
-            #    O resultado já vem com a hora/minuto zerados.
-            mes_de_referencia = (primeiro_dia_mes_atual - timedelta(days=1)).replace(day=1)
-            # 5. Define a data de INÍCIO da nossa busca.
-            primeiro_dia_mes_referencia = mes_de_referencia
-            # 6. Define a data de FIM da nossa busca.
-            #    É um microssegundo ANTES do início do mês atual. (ex: 31/07/2025 23:59:59.999999)
-            ultimo_dia_mes_referencia = primeiro_dia_mes_atual - timedelta(microseconds=1)
-            # 7. Imprime o log com a data e HORA para termos certeza do período.
-            #    Se esta mensagem não aparecer no seu log, o código não foi atualizado.
-            self.log_message(f"VERIFICACAO: O período de busca é de [{primeiro_dia_mes_referencia.strftime('%d/%m/%Y %H:%M:%S')}] até [{ultimo_dia_mes_referencia.strftime('%d/%m/%Y %H:%M:%S')}]")
-            # ==============================================================================
+            self.log_message(f"Período de busca dos arquivos: de {primeiro_dia_mes_referencia.strftime('%d/%m/%Y')} a {ultimo_dia_mes_referencia.strftime('%d/%m/%Y')}.")
+
             nome_mes_referencia = mes_de_referencia.strftime('%B').upper()
             nome_pasta_destino_local = f"{mes_de_referencia.strftime('%Y-%m')}_{nome_mes_referencia}"
             pasta_destino_completa = os.path.join(settings["pasta_destino_base"], nome_pasta_destino_local)
@@ -379,44 +259,14 @@ class App(tk.Tk):
             if arquivos_para_copiar:
                 self.log_message(f"Foram encontrados {len(arquivos_para_copiar)} arquivos para copiar.")
                 arquivos_copiados_com_sucesso = 0
-                # Lista para guardar os caminhos dos arquivos que foram copiados com sucesso
-                caminhos_arquivos_copiados = [] 
                 for arquivo in arquivos_para_copiar:
                     try:
                         shutil.copy(arquivo, pasta_destino_completa)
                         arquivos_copiados_com_sucesso += 1
                         self.log_message(f"Copiado: {os.path.basename(arquivo)}")
-                        # Adiciona o caminho completo do arquivo copiado na nova pasta
-                        caminhos_arquivos_copiados.append(os.path.join(pasta_destino_completa, os.path.basename(arquivo)))
                     except Exception as e:
-                        error_messages.append(f"Erro ao copiar '{os.path.basename(arquivo)}': {e}")
-                        self.log_message(f"ERRO ao copiar '{os.path.basename(arquivo)}': {e}")
-
-# ==============================================================================
-#                                INÍCIO DO NOVO TRECHO DE CÓDIGO
-# ==============================================================================
-
-                # Verifica se algum arquivo foi realmente copiado antes de tentar extrair dados
-                if caminhos_arquivos_copiados:
-                    self.log_message("Iniciando extração de dados das NFes para resumo...")
-                    lista_dados_extraidos = []
-                    for caminho_nfe in caminhos_arquivos_copiados:
-                        dados_nfe = self.extrair_dados_de_xml(caminho_nfe)
-                        if dados_nfe:
-                            lista_dados_extraidos.append(dados_nfe)
-
-                    # Define o nome e o caminho para o arquivo de resumo
-                    nome_resumo_csv = f"Resumo_NFEs_{nome_pasta_destino_local}.csv"
-                    caminho_resumo_csv = os.path.join(settings["pasta_destino_base"], nome_resumo_csv)
-
-                    # Salva os dados extraídos no arquivo CSV
-                    self.salvar_dados_em_csv(lista_dados_extraidos, caminho_resumo_csv)
-
-# ==============================================================================
-#                            FIM DO NOVO TRECHO DE CÓDIGO
-# ==============================================================================
-
-            
+                        error_messages.append(f"Erro ao copiar \'{os.path.basename(arquivo)}\': {e}")
+                        self.log_message(f"ERRO ao copiar \'{os.path.basename(arquivo)}\': {e}")
 
                 if arquivos_copiados_com_sucesso == 0:
                     script_status = "FALHA"
@@ -535,8 +385,6 @@ Cliente: {settings['nome_cliente_especifico']}
         ttk.Checkbutton(parent_frame, text="Ativar Agendamento Mensal", variable=self.enable_schedule_var).pack(padx=5, pady=5, anchor="nw")
         ttk.Button(parent_frame, text="Agendar Tarefa", command=self.schedule_task).pack(pady=10)
 
-
-
     def schedule_task(self):
         settings = self.get_settings()
         task_name = "Copia Mensal de NFEs para Nuvem"
@@ -546,7 +394,6 @@ Cliente: {settings['nome_cliente_especifico']}
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $pythonAppPath = Join-Path $scriptDir "app.py"
 $logFile = "{os.path.join(settings["pasta_destino_base"], "log_copia_nfe.log")}"
-
 
 Start-Process -FilePath "python.exe" -ArgumentList "$pythonAppPath", "--execute-backup-from-scheduler" -NoNewWindow -RedirectStandardOutput $logFile -RedirectStandardError $logFile -Wait
 """
@@ -584,3 +431,77 @@ Start-Process -FilePath "python.exe" -ArgumentList "$pythonAppPath", "--execute-
 if __name__ == "__main__":
     app = App()
     app.mainloop()
+
+
+
+    def schedule_task(self):
+        settings = self.get_settings()
+        task_name = "Copia Mensal de NFEs para Nuvem"
+        script_path = os.path.abspath(__file__) # Caminho do script Python atual
+
+        # Comando para executar o script Python com o interpretador Python
+        # Usamos `sys.executable` para garantir que o mesmo interpretador Python que está executando o app seja usado.
+        # O parâmetro `-SomenteExecutar` no script PowerShell original indicava para não agendar novamente.
+        # No nosso caso, o app Python sempre executa a lógica de backup/upload e o agendamento é uma função separada.
+        # Então, o comando agendado deve chamar o app Python para executar a função de backup.
+        # Para simplificar, vamos criar um script wrapper PowerShell que chama o app Python.
+        # Ou, podemos agendar diretamente o comando python.exe -m PyInstaller --onefile --windowed app.py
+        # Para o agendamento, vamos criar um script PowerShell que executa a função de backup do nosso app.
+        # Isso exigiria que o app estivesse em um estado que pudesse ser chamado via linha de comando para a função de backup.
+        # Uma abordagem mais simples para agendamento é criar um script PowerShell separado que chama o app Python.
+        # Ou, se o app for empacotado, o executável pode ser agendado.
+
+        # Por enquanto, vamos simular o agendamento de um comando simples para fins de demonstração.
+        # A implementação real dependeria de como o aplicativo será empacotado e distribuído.
+        # Para um aplicativo Python, o ideal seria agendar a execução do executável gerado pelo PyInstaller.
+        # Ou, se for um script, agendar 'pythonw.exe <caminho_do_script.py>'
+
+        # Para este exemplo, vamos agendar um comando PowerShell que executa um script Python.
+        # Este script PowerShell precisaria ser criado e salvo em algum lugar.
+        # Vamos criar um script PowerShell temporário para isso.
+
+        powershell_script_content = f"""
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$pythonAppPath = Join-Path $scriptDir "app.py" # Assumindo que app.py estará no mesmo diretório
+$logFile = "{os.path.join(settings["pasta_destino_base"], "log_copia_nfe.log")}"
+
+# Redirecionar stdout e stderr para o log
+Start-Process -FilePath "python.exe" -ArgumentList "$pythonAppPath", "--execute-backup-from-scheduler" -NoNewWindow -RedirectStandardOutput $logFile -RedirectStandardError $logFile -Wait
+"""
+        
+        # Salvar o script PowerShell temporário
+        temp_ps_script_path = os.path.join(settings["pasta_destino_base"], "run_backup.ps1")
+        with open(temp_ps_script_path, "w") as f:
+            f.write(powershell_script_content)
+
+        command_to_schedule = f"powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"{temp_ps_script_path}\""
+
+        try:
+            # Verifica se a tarefa já existe
+            check_task_command = f"schtasks /query /TN \"{task_name}\""
+            result = subprocess.run(check_task_command, capture_output=True, text=True, check=False, shell=True)
+
+            if task_name in result.stdout:
+                self.log_message(f"AVISO: A tarefa \'{task_name}\' já existe. Não será criada novamente.")
+                self.log_message(f"Para recriar a tarefa, delete-a primeiro com: schtasks /delete /tn \"{task_name}\" /f")
+            else:
+                self.log_message(f"Criando tarefa \'{task_name}\' para executar \'{command_to_schedule}\'...")
+                
+                # CORREÇÃO CRÍTICA: Comando com parâmetro -SomenteExecutar para evitar loop infinito
+                # No nosso caso, o script Python não agendaria novamente, então não precisamos do -SomenteExecutar
+                # A tarefa agendada chamará diretamente a função de backup do app Python.
+
+                # Criar tarefa usando schtasks
+                create_task_command = f"schtasks /Create /TN \"{task_name}\" /TR \"{command_to_schedule}\" /SC MONTHLY /D 1 /ST \"10:00\" /RU \"SYSTEM\" /RL HIGHEST /F"
+                result = subprocess.run(create_task_command, capture_output=True, text=True, check=False, shell=True)
+                
+                if result.returncode == 0:
+                    self.log_message(f"SUCESSO: Tarefa \'{task_name}\' foi agendada com sucesso.")
+                    self.log_message("Ela será executada todo dia 1 de cada mês às 10:00.")
+                    self.log_message(f"Para testar a tarefa manualmente: schtasks /run /tn \"{task_name}\"")
+                else:
+                    self.log_message(f"ERRO: Falha ao criar a tarefa. Código de saída: {result.returncode}")
+                    self.log_message(f"Detalhes: {result.stderr}")
+        except Exception as e:
+            self.log_message(f"ERRO ao tentar agendar a tarefa: {e}")
+
