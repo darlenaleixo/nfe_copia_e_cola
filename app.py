@@ -473,6 +473,28 @@ class App(tk.Tk):
                             process = subprocess.run([settings["rclone_path"]] + argumentos, capture_output=True, text=True, check=True)
                             self.log_message(f"SUCESSO: Upload do arquivo \'{nome_arquivo_zip}\' concluído.")
                             self.log_message(process.stdout)
+                            self.log_message("--- Iniciando upload do arquivo de resumo CSV ---")
+                            if os.path.exists(caminho_resumo_csv):
+                                try:
+                                    # Prepara os argumentos do rclone especificamente para o arquivo CSV
+                                    argumentos_csv = [
+                                        "copy",
+                                        caminho_resumo_csv,  # Fonte: O arquivo CSV
+                                        f"{settings['rclone_remote_name']}:{caminho_destino_drive}",  # Destino: A mesma pasta do ZIP
+                                        "--config", config_path,
+                                        "--progress"
+                                    ]
+                                    self.log_message(f"Executando rclone para o CSV: {settings['rclone_path']} {' '.join(argumentos_csv)}")
+                                    # Executa o comando de upload para o CSV
+                                    subprocess.run([settings["rclone_path"]] + argumentos_csv, capture_output=True, text=True, check=True)
+                                    self.log_message(f"SUCESSO: Upload do arquivo '{os.path.basename(caminho_resumo_csv)}' concluído.")
+                                except subprocess.CalledProcessError as e_csv:
+                                    # Se o upload do CSV falhar, apenas registra o erro, mas não para o script
+                                    error_messages.append(f"Upload do CSV falhou (código: {e_csv.returncode}). Erro: {e_csv.stderr}")
+                                    self.log_message(f"ERRO: Upload do CSV falhou. Código: {e_csv.returncode}. Erro: {e_csv.stderr}")
+                            else:
+                                self.log_message(f"AVISO: Arquivo de resumo CSV não encontrado em '{caminho_resumo_csv}'. Upload do CSV ignorado.")
+                            # --- FIM DO NOVO TRECHO ---
                         except subprocess.CalledProcessError as e:
                             script_status = "FALHA"
                             error_messages.append(f"Upload com rclone falhou (código: {e.returncode}). Erro: {e.stderr}")
