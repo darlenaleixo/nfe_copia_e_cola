@@ -430,7 +430,6 @@ class App(tk.Tk):
                 caminho_arquivo_zip = os.path.join(settings["pasta_destino_base"], nome_arquivo_zip)
 
                 if os.path.exists(caminho_arquivo_zip):
-                    self.log_message(f"Arquivo .zip \'{caminho_arquivo_zip}\' já existe. Removendo para criar um novo.")
                     os.remove(caminho_arquivo_zip)
 
                 self.log_message(f"Iniciando a compactação para \'{caminho_arquivo_zip}\'...")
